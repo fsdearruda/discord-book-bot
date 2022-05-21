@@ -22,8 +22,6 @@ const getBookRating = async (book: Book): Promise<string | null> => {
     const $ = cheerio.load(page.data.toString("ISO-8859-1"));
 
     let rating = $("span[class='rating']").text();
-    console.log("AQUI AQUI AQUI");
-    console.log(rating);
     return rating;
   } catch (err) {
     console.log(err);
@@ -33,18 +31,19 @@ const getBookRating = async (book: Book): Promise<string | null> => {
 
 export const createBookEmbed = (book: Book): Promise<any> => {
   return new Promise(async resolve => {
+
     // const placeholders = { thumbnail: "https://i.imgur.com/Rboh7Ys.png", color: "#6632a8" } Roxinho
     const placeholders = { thumbnail: "https://i.imgur.com/cmTtDd1.png", color: "#314560" }; // Azul
     const details = {
-      color: book.capa != null ? await getThumbnailColor(book.capa) : placeholders.color,
-      thumbnail: book.capa != null ? book.capa : placeholders.thumbnail,
+      color: book.capa !== null ? await getThumbnailColor(book.capa) : placeholders.color,
+      thumbnail: book.capa !== null ? book.capa : placeholders.thumbnail,
     };
 
     const nota = await getBookRating(book);
 
     const embeddedMessage = new MessageEmbed()
       .setColor(details.color)
-      .setTitle(book.titulo)
+      .setTitle(book.titulo.toString())
       .setDescription(
         `${
           book.sinopse ? `${book.sinopse}${book.amazon_url ? ` [...ver mais](${book.amazon_url})` : null} \n\n` : ""
@@ -76,6 +75,7 @@ export const createBookEmbed = (book: Book): Promise<any> => {
       )
       .setFooter({ text: "Feito por @rapoxo", iconURL: "https://avatars.githubusercontent.com/u/69836442?s=460&v=4" })
       .setTimestamp(new Date());
+
     resolve(embeddedMessage);
   });
 };

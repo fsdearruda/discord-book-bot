@@ -1,4 +1,4 @@
-import type { SkoobResponse, SearchResult } from "./models/SkoobResponse";
+import type { SkoobResponse, SearchResult, SkoobBookType } from "./models/SkoobResponse";
 import { createBookEmbed } from "./embed";
 import { Book, User } from "./models";
 import { insertBook, searchBook } from "./mongoTools";
@@ -15,9 +15,21 @@ const config = {
   },
 };
 
-const skoobSearch = async (query: string) => {
-  const response = await axios.get<SearchResult>(`https://www.skoob.com.br/search/v1?q=${query}&limit=3`);
-  return response.data.results;
+const skoobSearch = async (query: string): Promise<Book[]> => {
+  const response = await axios.get<any>(`https://www.skoob.com.br/search/v1?q=${encodeURI(query)}&limit=3`);
+  const books: any[] = response.data.results;
+  const titles = books.map(book => book.titulo);
+  
+  if ([...new Set(titles)].length === 1) {
+    return [await getBookById(<string>books[0].id)];
+  }
+
+  return await Promise.all(
+    books.map(async (book: any) => {
+      console.log(book);
+      return await getBookById(book.id);
+    })
+  );
 };
 
 const skoobFetch = async (route: string) => {
@@ -56,13 +68,20 @@ const getAmazonUrl = async (isbn: string[] | null) => {
   return `https://amazon.com.br/dp/${isbn[1]}?tag=${amazonTag}`;
 };
 
-const getBook = async (bookID: string): Promise<Book> => {
+const searchBookByTitle = async (title: string): Promise<Book[]> => {
+  const books = await skoobSearch(title);
+
+  /* return [{ ...books[0], embeddedMessage: await createBookEmbed(books[0]) }]; */
+  return await Promise.all(books.map(async book => ({ ...book, embeddedMessage: await createBookEmbed(book) })));
+};
+
+const getBookById = async (bookID: string): Promise<Book> => {
   const book = await searchBook(bookID);
 
   if (book) return { ...book, embeddedMessage: await createBookEmbed(book) };
   const response = await skoobFetch(`book/${bookID}`);
-
   let { id, livro_id, titulo, subtitulo, ano, paginas, autor, sinopse, editora, leitores, capa_grande, url } = response;
+
   const isbn = await getBookISBN(url);
   const amazon_url = await getAmazonUrl(isbn);
   if (sinopse.length > 300) sinopse = sinopse.substring(0, 300);
@@ -94,4 +113,4 @@ const getUser = async (userID: string): Promise<User> => {
   return { skoob_id: id.toString(), nome, apelido, skoob, foto };
 };
 
-export { skoobFetch, skoobSearch, getUser, getBook };
+export { skoobFetch, skoobSearch, getUser, getBookById, searchBookByTitle };
